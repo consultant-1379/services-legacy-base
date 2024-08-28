@@ -1,0 +1,42 @@
+## LiveLoad/Search template for BSC/RNC/ERBS
+## Expected Context Parameters:
+##      query - where a BSC/RNC/ERBS name is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##
+
+
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "result.RAT = 1 AND" )
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause = " HIERARCHY_3+','+VENDOR+','+RAT_DESC LIKE '${query}' AND " )
+#end
+
+#set( $selectColumns = "HIERARCHY_3, VENDOR, RAT" )
+#set( $selectColumnsToDisplay = "HIERARCHY_3, VENDOR, RAT_DESC" )
+
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+SELECT ${limitResults}  $selectColumnsToDisplay  FROM (
+##ericsson nodes
+SELECT DISTINCT $selectColumns from DIM_E_SGEH_HIER321  ## filter sub table early ,                                                                ##reduce intermediate result set size
+UNION
+##non ericsson nodes
+SELECT DISTINCT $selectColumns from DIM_Z_SGEH_HIER321
+UNION
+##4g topology (all ericsson, there is no none ericsson 4g topology)
+SELECT DISTINCT $selectColumns from DIM_E_LTE_HIER321
+) as result
+left outer join DIM_E_SGEH_RAT
+on (DIM_E_SGEH_RAT.RAT =  result.RAT)
+WHERE
+${whereClause} HIERARCHY_3 IS NOT NULL AND VENDOR IS NOT NULL
+ORDER BY $selectColumnsToDisplay

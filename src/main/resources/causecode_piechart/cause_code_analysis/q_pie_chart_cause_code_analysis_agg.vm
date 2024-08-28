@@ -1,0 +1,15 @@
+select
+    events.CAUSE_CODE,
+    events.CAUSE_CODE_DESC,
+    events.CAUSE_PROT_TYPE,
+    events.NO_OF_ERRORS,
+    subscribers.NO_OF_SUBSCRIBERS
+from
+    ($QUERY_PART_EVENTS) events,
+    ($QUERY_PART_SUBSCRIBERS) subscribers
+where
+    events.CAUSE_CODE *= subscribers.CAUSE_CODE
+    and  events.CAUSE_PROT_TYPE *= subscribers.CAUSE_PROT_TYPE
+    and  events.TECHNOLOGY *= subscribers.TECHNOLOGY
+order by
+    events.CAUSE_CODE

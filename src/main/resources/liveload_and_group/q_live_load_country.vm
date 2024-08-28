@@ -1,0 +1,24 @@
+## LiveLoad/Search template for Country Name
+## Expected Context Parameters:
+##      limit - Limit the return list to 'TOP $limit'
+##       @Author ezhelao
+##
+
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "" )
+
+
+#set( $selectColumns = "COUNTRY,MCC" )
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+SELECT ${limitResults} * FROM (
+	## Ericsson Nodes
+    SELECT DISTINCT $selectColumns from DIM_E_SGEH_MCCMNC $whereClause
+) AS results ORDER BY COUNTRY,MCC ASC

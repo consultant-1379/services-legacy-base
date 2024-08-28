@@ -1,0 +1,49 @@
+## LiveLoad/Search template for Handset makes
+## Expected Context Parameters:
+##      query - where an APN is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##
+## id
+##  If ${id} is not set, get a list of distinct types, this will be used to generate the UI metadata
+##  If ${id} is set, query the database for the sub type (i.e. brand)
+##
+
+## MARKETING_NAME column
+#set( $marketingName = "MARKETING_NAME")
+#set( $manufacturer = "MANUFACTURER")
+
+## Handset makes table
+#set( $dimTable = "DIM_E_SGEH_TAC")
+
+##Default limit clause
+#set( $limitResults = "" )
+
+## Default where clause
+#set( $whereClause = "" )
+
+## Default select column
+#set( $selectColumn = $manufacturer )
+
+#if( ${id} )
+    #set( $whereClause = "WHERE $manufacturer = '${id}'" )
+    #if( ${query} )
+        #set( $whereClause = "$whereClause and $marketingName +','+convert(varchar(10),TAC) like '${query}'" )
+    #end
+    #set( $selectColumn = "$marketingName,TAC" )
+#elseif ( ${query} )
+    #set( $whereClause = "WHERE $manufacturer LIKE '${query}'" )
+#end
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+
+SELECT DISTINCT
+#if(${id})
+${limitResults}
+#end
+$selectColumn FROM $dimTable $whereClause ORDER BY $selectColumn
+
+

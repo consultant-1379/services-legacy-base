@@ -1,0 +1,37 @@
+## LiveLoad/Search template for SBR CEll
+## Expected Context Parameters:
+##      query - where a CELL name is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##
+
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "" )
+
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause = "CELL_ID LIKE '%${query}' AND " )
+#end
+
+#set( $selectColumns = "CELL_ID,HIERARCHY_1,HIERARCHY_2, HIERARCHY_3, VENDOR, RAT" )
+#set( $selectColumnsToDisplay = " CELL_ID,HIERARCHY_1,HIERARCHY_2, HIERARCHY_3, VENDOR, RAT_DESC" )
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+SELECT ${limitResults} $selectColumnsToDisplay FROM (
+	## Ericsson Nodes
+    SELECT DISTINCT $selectColumns from dc.DIM_E_SGEH_HIER321_CELL WHERE $whereClause  HIER3_ID = $HIER3_ID 
+	AND CELL_ID != '' AND CELL_ID IS NOT NULL AND HIERARCHY_1 IS NOT NULL AND HIERARCHY_3 IS NOT NULL AND VENDOR IS NOT NULL AND RAT IS NOT NULL
+    
+
+
+) AS results
+left outer join dc.DIM_E_SGEH_RAT
+on (dc.DIM_E_SGEH_RAT.RAT = results.RAT)
+ORDER BY HIERARCHY_1

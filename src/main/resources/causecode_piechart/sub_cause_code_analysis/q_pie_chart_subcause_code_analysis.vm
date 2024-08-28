@@ -1,0 +1,71 @@
+#DEFINE_CONSTANTS()
+
+#macro(SCCAS_QUERY_BY_CC $errTable $ccTable $sccTable $cptTable)
+(
+select	
+	errRef.CAUSE_PROT_TYPE, 
+	errRef.CAUSE_CODE, 
+	errRef.SUBCAUSE_CODE,
+	isnull(SUBCAUSE_CODE_DESC, 'SUBCAUSE_CODE_DESCRIPTION_NOT_AVAILABLE') || ' (' || isnull(CAUSE_PROT_TYPE_DESC, 'PROTOCOL_TYPE_DESCRIPTION_NOT_AVAILABLE') || ')' as SUBCAUSE_CODE_DESC,
+	isnull(sccref.SUBCAUSE_CODE_HELP, '') as SUBCAUSE_CODE_HELP,
+	count(*),
+	IMSI
+from
+	dc.${errTable} errRef,
+	dc.${ccTable} ccref,
+	dc.${sccTable} sccref,
+	dc.${cptTable} cptref
+	#GROUP_TABLE_INFO()
+where
+	#if(!$errTable.contains("_DAY")&& $timerange == "TR_4")
+		#GET_DATE_RANGE_LOCAL()
+	#else
+		#GET_DATETIME_RANGE()
+	#end
+	#GROUP_OR_SINGLE_INFO()
+	and #GET_TAC_EXCLUSION()
+	and errRef.CAUSE_PROT_TYPE *= cptref.CAUSE_PROT_TYPE 
+	and errRef.CAUSE_CODE *= ccref.CAUSE_CODE 
+	and errRef.CAUSE_PROT_TYPE*= ccref.CAUSE_PROT_TYPE 
+	and errRef.SUBCAUSE_CODE *= sccref.SUBCAUSE_CODE 
+	and errRef.CAUSE_CODE = :CAUSE_CODE
+	and errRef.CAUSE_PROT_TYPE = :CAUSE_PROT_TYPE
+group by
+	IMSI,
+	errRef.CAUSE_CODE,
+	errRef.SUBCAUSE_CODE,
+	SUBCAUSE_CODE_DESC,
+	SUBCAUSE_CODE_HELP,
+	errRef.CAUSE_PROT_TYPE
+)
+#end
+
+select
+	err.CAUSE_PROT_TYPE as CAUSE_PROT_TYPE,
+	err.CAUSE_CODE as CAUSE_CODE,
+	err.SUBCAUSE_CODE as SUBCAUSE_CODE,
+	err.SUBCAUSE_CODE_DESC as SUBCAUSE_CODE_DESC,
+	err.SUBCAUSE_CODE_HELP as whatnext,
+	sum(isnull(err.NO_OF_ERRORS, 0)) as NO_OF_ERRORS,
+	isnull(count(distinct(IMSI)),0) as NO_OF_TOTAL_ERR_SUBSCRIBERS		
+from (
+	#foreach ($errtable in $rawErrTables)
+		#if ($errtable.toString().indexOf($ApplicationConstants.SGEH) > -1)
+			#SCCAS_QUERY_BY_CC($errtable $ccRefForSgeh $sccRefForSgeh $cptRefForSgeh)	
+		#else
+			#SCCAS_QUERY_BY_CC($errtable $ccRefForLte $sccRefForLte $cptRefForLte)
+		#end
+		#if($velocityCount < $rawErrTables.size())
+			union all
+		#end
+	#end
+) as err (CAUSE_PROT_TYPE, CAUSE_CODE, SUBCAUSE_CODE, SUBCAUSE_CODE_DESC, SUBCAUSE_CODE_HELP, NO_OF_ERRORS, IMSI)
+group by
+	err.CAUSE_CODE,
+	err.SUBCAUSE_CODE,
+	err.SUBCAUSE_CODE_DESC,
+	err.SUBCAUSE_CODE_HELP,
+	err.CAUSE_PROT_TYPE,
+	whatnext
+order by
+	err.SUBCAUSE_CODE

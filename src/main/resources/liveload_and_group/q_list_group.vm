@@ -1,0 +1,121 @@
+## tableName -- The Group Table name in dwhdb
+## keys -- The list of keys that the query wants
+## groupname -- The name of the group
+#if($tableName == "GROUP_TYPE_E_RAT_VEND_HIER3")
+SELECT
+    GROUP_NAME ,
+    CONTROLLER ,
+    VENDOR ,
+    RAT_DESC
+FROM
+    (
+select
+#set( $index = 1 )
+#foreach ($keyName in $keys)
+	#if($keyName != $ApplicationConstants.HIER2)
+	$keyName #if( $index < $keys.size()) ,
+	#end
+	#end
+#set( $index = $index + 1 )
+#end
+from 
+$tableName
+#if($groupname)
+	where GROUP_NAME = '$groupname'
+#end
+	UNION
+	    SELECT
+            GROUP_NAME ,
+            HIERARCHY_3 ,
+            RAT ,
+            VENDOR
+        FROM
+            GROUP_TYPE_E_RAT_VEND_HIER3
+	#if($groupname)
+		where GROUP_NAME = '$groupname'
+	#end ) as
+    topology (GROUP_NAME , CONTROLLER ,  RAT , VENDOR)
+LEFT OUTER JOIN
+(
+SELECT
+    RAT,
+    RAT_DESC
+FROM
+    DIM_E_SGEH_RAT) as radio_tech
+on topology.rat = radio_tech.rat
+order by 1,2,3,4 ASC
+#elseif($tableName != "GROUP_TYPE_E_RAT_VEND_HIER321")
+	select
+	#set( $index = 1 )
+		#foreach ($keyName in $keys)
+			#if($keyName != $ApplicationConstants.HIER2)
+				$keyName #if( $index < $keys.size()) ,
+				#end
+			#end
+			#set( $index = $index + 1 )
+		#end
+	from
+	$tableName
+	#if($groupname)
+		where GROUP_NAME = '$groupname'
+	#end
+    order by
+    #if($groupname)
+        GROUP_NAME ,
+    #end
+    #set( $index = 1 )
+		#foreach ($keyName in $keys)
+			#if($keyName != $ApplicationConstants.HIER2)
+				$keyName #if( $index < $keys.size()) ,
+				#end
+			#end
+			#set( $index = $index + 1 )
+		#end
+    ASC
+#else
+SELECT
+    GROUP_NAME ,
+    CELL_ID ,
+    '' AS HIERARCHY_2 ,
+    CONTROLLER ,
+    VENDOR ,
+    RAT_DESC
+FROM
+    (
+select
+#set( $index = 1 )
+#foreach ($keyName in $keys)
+	#if($keyName != $ApplicationConstants.HIER2)
+	$keyName #if( $index < $keys.size()) ,
+	#end
+	#end
+#set( $index = $index + 1 )
+#end
+from 
+$tableName
+#if($groupname)
+	where GROUP_NAME = '$groupname'
+#end
+	UNION
+	    SELECT
+            GROUP_NAME ,
+            CELL_ID ,
+            HIERARCHY_3 ,
+            RAT ,
+            VENDOR
+        FROM
+            GROUP_TYPE_E_RAT_VEND_HIER321_CELL
+	#if($groupname)
+		where GROUP_NAME = '$groupname'
+	#end ) as
+    topology (GROUP_NAME , CELL_ID , CONTROLLER ,  RAT , VENDOR)
+LEFT OUTER JOIN
+(
+SELECT
+    RAT,
+    RAT_DESC
+FROM
+    DIM_E_SGEH_RAT) as radio_tech
+on topology.rat = radio_tech.rat
+order by 1,2,4,5,6 ASC
+#end

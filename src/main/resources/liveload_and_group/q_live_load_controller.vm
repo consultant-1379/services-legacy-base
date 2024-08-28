@@ -1,0 +1,75 @@
+## LiveLoad/Search template for BSC/RNC/ERBS
+## Expected Context Parameters:
+##      query - where a BSC/RNC/ERBS name is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##      doesSgehTechPackExist - If SGEH teckpack is installed then it return 'Y' else 'N'
+##      doesLteTechPackExist - If LTE teckpack is installed then it return 'Y' else 'N'
+
+
+#DEFINE_CONSTANTS()
+#set($LTE="2")
+#set($useNonLteTables=true)
+#set($useLteTables=true)
+
+#if(${type}==$TYPE_BSC)
+    #set($useLteTables=true)
+#elseif(${type}==$TYPE_CELL)
+    #if(${RAT_VALUE}==$LTE)
+        #set($useNonLteTables=false)
+    #else
+        #set($useLteTables=true)
+    #end
+#end
+
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "" )
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause = " HIERARCHY_3+','+VENDOR+','+RAT_DESC LIKE '${query}' AND " )
+#end
+
+#set( $selectColumns = "HIERARCHY_3, VENDOR, RAT" )
+#set( $selectColumnsToDisplay = "HIERARCHY_3, VENDOR, RAT_DESC" )
+
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+
+
+#macro(EVENT_ANALYSIS_SELECT_FROM $networkType)
+    #if($networkType == $ApplicationConstants.SGEH)
+	    ##ericsson nodes
+        select $selectColumns from dc.DIM_E_${networkType}_HIER321
+        union
+		##non ericsson nodes
+        select $selectColumns from dc.DIM_Z_${networkType}_HIER321
+    #elseif($networkType == $ApplicationConstants.LTE)
+	    ##4g topology
+        select $selectColumns from dc.DIM_E_${networkType}_HIER321
+    #end
+#end
+
+
+SELECT ${limitResults}  $selectColumnsToDisplay  FROM (
+#if($doesSgehTechPackExist == 'Y' && $useNonLteTables)
+    #EVENT_ANALYSIS_SELECT_FROM( $ApplicationConstants.SGEH )
+#end
+#if($doesLteTechPackExist == 'Y'  && $useLteTables)
+    #if($doesSgehTechPackExist == 'Y' && $useNonLteTables)
+        union
+    #end
+    #EVENT_ANALYSIS_SELECT_FROM ($ApplicationConstants.LTE )
+#end
+) as result
+left outer join DIM_E_SGEH_RAT
+on (DIM_E_SGEH_RAT.RAT =  result.RAT)
+WHERE
+${whereClause} HIERARCHY_3 IS NOT NULL AND VENDOR IS NOT NULL AND RAT_DESC IS NOT NULL
+ORDER BY $selectColumnsToDisplay

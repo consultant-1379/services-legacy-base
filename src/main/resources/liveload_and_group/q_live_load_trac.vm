@@ -1,0 +1,28 @@
+## LiveLoad/Search template for TRAC
+## Expected Context Parameters:
+##      query - where a TRAC name is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##
+
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "" )
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause = "WHERE CONVERT(VARCHAR, TRAC) LIKE '${query}'" )
+#end
+
+#set( $selectColumns = "TRAC" )
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+SELECT ${limitResults} * FROM (
+	## Ericsson Nodes
+    SELECT DISTINCT $selectColumns from DIM_E_LTE_HIER321 $whereClause
+) AS results ORDER BY TRAC

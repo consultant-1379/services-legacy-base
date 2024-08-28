@@ -1,0 +1,26 @@
+## LiveLoad/Search template for SGSN
+## Expected Context Parameters:
+##      query - where a SGSN name is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##
+
+## Nodes
+#set( $dimTable = "DIM_E_SGEH_SGSN" )
+#set( $nameColumn = "SGSN_NAME" )
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "" )
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause = "WHERE ${nameColumn} LIKE '${query}'" )
+#end
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+SELECT DISTINCT ${limitResults} ${nameColumn} from ${dimTable} ${whereClause} order by ${nameColumn}

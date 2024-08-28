@@ -1,0 +1,109 @@
+## LiveLoad/Search template for CEll
+## Expected Context Parameters:
+##      query - where a CELL name is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##      doesSgehTechPackExist - If SGEH teckpack is installed then it return 'Y' else 'N'
+##      doesLteTechPackExist - If LTE teckpack is installed then it return 'Y' else 'N'
+
+#DEFINE_CONSTANTS()
+#set($LTE="2")
+#set($useNonLteTables=true)
+#set($useLteTables=true)
+
+#if(${type}==$TYPE_BSC)
+    #set($useLteTables=true)
+#elseif(${type}==$TYPE_CELL)
+    #if(${RAT_VALUE}==$LTE)
+        #set($useNonLteTables=false)
+    #else
+        #set($useLteTables=true)
+    #end
+#end
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "" )
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause =  " WHERE IDs +','+ HIERARCHY_2+','+ +HIERARCHY_3+','+ VENDOR +',' +RAT_DESC like '${query}'" )
+#end
+
+#set( $selectColumns = "HIERARCHY_1 as IDs,HIERARCHY_2, HIERARCHY_3, VENDOR, RAT" )
+#set( $wcdmaselectColumns = "CELL_ID AS IDs,HIERARCHY_2, HIERARCHY_3, VENDOR, RAT" )
+#set( $selectColumnsToDisplay = " IDs,HIERARCHY_2, HIERARCHY_3, VENDOR, RAT_DESC" )
+
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+
+#macro(EVENT_ANALYSIS_SELECT_FROM $networkType)
+    #if($networkType == $ApplicationConstants.SGEH)
+        ## Ericsson Nodes
+        SELECT DISTINCT  $selectColumns from DIM_E_${networkType}_HIER321
+        WHERE
+        HIERARCHY_1 != ''
+        AND HIERARCHY_1 IS NOT NULL
+        AND HIERARCHY_3 IS NOT NULL
+        AND VENDOR IS NOT NULL
+        AND RAT IS NOT NULL
+        union
+        ## Non-Ericsson Nodes.
+        select DISTINCT $selectColumns from dc.DIM_Z_${networkType}_HIER321
+        WHERE
+        HIERARCHY_1 != ''
+        AND HIERARCHY_1 IS NOT NULL
+        AND HIERARCHY_3 IS NOT NULL
+        AND VENDOR IS NOT NULL
+        AND RAT IS NOT NULL
+        union
+        ## WCDMA
+        SELECT DISTINCT $wcdmaselectColumns from DIM_E_${networkType}_HIER321_CELL
+        WHERE
+        CELL_ID != ''
+        AND CELL_ID IS NOT NULL
+        AND HIERARCHY_3 IS NOT NULL
+        AND VENDOR IS NOT NULL
+        AND RAT IS NOT NULL
+        union
+        ## WCDMA Non-Ericsson Cell
+        SELECT DISTINCT $wcdmaselectColumns from DIM_Z_${networkType}_HIER321_CELL
+        WHERE
+        CELL_ID != ''
+        AND CELL_ID IS NOT NULL
+        AND HIERARCHY_3 IS NOT NULL
+        AND VENDOR IS NOT NULL
+        AND RAT IS NOT NULL
+    #elseif($networkType == $ApplicationConstants.LTE)
+        ## WCDMA Non-Ericsson Cell
+        SELECT DISTINCT $selectColumns from DIM_E_${networkType}_HIER321
+        WHERE
+        HIERARCHY_1 != ''
+        AND HIERARCHY_1 IS NOT NULL
+        AND HIERARCHY_3 IS NOT NULL
+        AND VENDOR IS NOT NULL
+        AND RAT IS NOT NULL
+    #end
+#end
+
+
+SELECT ${limitResults} ${selectColumnsToDisplay} FROM (
+#if($doesSgehTechPackExist == 'Y' && $useNonLteTables)
+    #EVENT_ANALYSIS_SELECT_FROM( $ApplicationConstants.SGEH )
+#end
+#if($doesLteTechPackExist == 'Y'  && $useLteTables)
+    #if($doesSgehTechPackExist == 'Y' && $useNonLteTables)
+     union
+    #end
+    #EVENT_ANALYSIS_SELECT_FROM ($ApplicationConstants.LTE )
+#end   
+) AS results
+left outer join DIM_E_SGEH_RAT
+on (DIM_E_SGEH_RAT.RAT = results.RAT)
+${whereClause}
+
+ORDER BY IDs, HIERARCHY_2,HIERARCHY_3,VENDOR ,RAT_DESC

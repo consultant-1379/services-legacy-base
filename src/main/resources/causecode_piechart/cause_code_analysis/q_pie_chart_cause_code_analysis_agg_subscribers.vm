@@ -1,0 +1,59 @@
+#DEFINE_CONSTANTS()
+
+#set($sccRefForSgeh="DIM_E_SGEH_SUBCAUSECODE")
+#set($sccRefForLte="DIM_E_LTE_SUBCAUSECODE")
+#set($SGEH_TECH = "2G/3G")
+#set($LTE_TECH = "4G")
+
+#macro(CCAS_QUERY_SUB_COUNT $errTable $ccTable $sccTable $tech)
+(
+select
+	'$tech' AS TECHNOLOGY,
+    errRef.CAUSE_CODE,
+    errRef.CAUSE_PROT_TYPE,
+    IMSI
+from
+    dc.${errTable} errRef,
+    dc.${ccTable} ccref
+    #GROUP_TABLE_INFO()
+where
+	#if(!$errTable.contains("_DAY")&& $timerange == "TR_4")
+		#GET_DATE_RANGE_LOCAL()
+	#else
+		#GET_DATETIME_RANGE()
+	#end
+    #GROUP_OR_SINGLE_INFO()
+    and errRef.CAUSE_CODE *= ccref.CAUSE_CODE 
+    and errRef.CAUSE_PROT_TYPE *= ccref.CAUSE_PROT_TYPE 
+    and CAST(errRef.CAUSE_CODE AS VARCHAR)+'_'+CAST(errRef.CAUSE_PROT_TYPE AS VARCHAR) in ($causeCodeIds)
+	and #GET_TAC_EXCLUSION()
+group by
+    IMSI,
+    errRef.CAUSE_CODE,
+    errRef.CAUSE_PROT_TYPE,
+	TECHNOLOGY
+)
+#end
+
+select
+	sub.TECHNOLOGY as TECHNOLOGY,
+    sub.CAUSE_CODE  as CAUSE_CODE,
+    sub.CAUSE_PROT_TYPE as CAUSE_PROT_TYPE,
+    isnull(count(distinct(IMSI)),0) as NO_OF_SUBSCRIBERS
+from 
+    (
+    #foreach ($errtable in $rawAllErrTables)
+        #if ($errtable.toString().indexOf($ApplicationConstants.SGEH) > -1)
+            #CCAS_QUERY_SUB_COUNT($errtable $ccRefForSgeh $sccRefForSgeh $SGEH_TECH)
+        #else
+            #CCAS_QUERY_SUB_COUNT($errtable $ccRefForLte $sccRefForLte $LTE_TECH)
+        #end
+        #if($velocityCount < $rawAllErrTables.size())
+            union all
+        #end
+    #end
+    ) as sub (TECHNOLOGY, CAUSE_CODE, CAUSE_PROT_TYPE ,IMSI)
+group by
+    sub.CAUSE_CODE,
+    sub.CAUSE_PROT_TYPE,
+	sub.TECHNOLOGY

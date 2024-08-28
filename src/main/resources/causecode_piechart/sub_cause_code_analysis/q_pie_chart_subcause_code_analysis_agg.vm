@@ -1,0 +1,18 @@
+select
+	events.CAUSE_PROT_TYPE as CAUSE_PROT_TYPE,
+	events.CAUSE_CODE as CAUSE_CODE,
+	events.SUBCAUSE_CODE as SUBCAUSE_CODE,
+	events.SUBCAUSE_CODE_DESC as SUBCAUSE_CODE_DESC,
+	events.SUBCAUSE_CODE_HELP as whatnext,
+	events.NO_OF_ERRORS as NO_OF_ERRORS,
+	subscribers.NO_OF_SUBSCRIBERS as NO_OF_SUBSCRIBERS
+from
+	($QUERY_PART_EVENTS) events
+	
+left outer join
+	($QUERY_PART_SUBSCRIBERS) subscribers
+	on (events.CAUSE_CODE = subscribers.CAUSE_CODE and events.SUBCAUSE_CODE = subscribers.SUBCAUSE_CODE and events.CAUSE_PROT_TYPE = subscribers.CAUSE_PROT_TYPE 
+		and events.TECHNOLOGY = subscribers.TECHNOLOGY)
+
+order by
+	events.CAUSE_CODE	

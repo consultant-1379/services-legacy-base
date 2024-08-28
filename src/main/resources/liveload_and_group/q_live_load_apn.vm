@@ -1,0 +1,27 @@
+## LiveLoad/Search template for APN's
+## Expected Context Parameters:
+##      query - where an APN is like ${query}
+##      limit - Limit the return list to 'TOP $limit'
+##
+
+##Default limit clause
+#set( $limitResults = "" )
+## Default where clause
+#set( $whereClause = "WHERE LAST_SEEN >= :dateFromForApnRetention" )
+
+## Create the where clause if $query is set
+#if( ${query} )
+    #set( $whereClause = "WHERE LAST_SEEN >= :dateFromForApnRetention and APN LIKE '${query}'" )
+#end
+
+## Create the TOP clause if $limit is set
+#if( ${limit} )
+    #set( $limitResults = "TOP ${limit}" )
+#end
+
+SELECT ${limitResults} * from(
+	SELECT DISTINCT APN FROM DIM_E_SGEH_APN ${whereClause}
+	union
+	SELECT DISTINCT APN FROM DIM_E_LTE_APN ${whereClause}
+	)
+as results order by APN

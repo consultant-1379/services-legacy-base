@@ -1,0 +1,25 @@
+##Generic query for imsi-msisdn many to many mapping with Sybase ASA LIST function
+##input type: {IMSI,MSISDN}
+##return data: Aggregated IMSI or MSISDN for particular input
+##EHAOSWA 11/07/2011
+
+#DEFINE_CONSTANTS()
+
+## IMSI-MSISDN mapping table
+#set( $dimTable = "DIM_E_IMSI_MSISDN")
+
+
+## Default where clause
+#set( $whereClause = "" )
+
+
+#if( ${type}==$TYPE_IMSI )
+	#set( $selectColumn = "LIST(MSISDN) AS MSISDN" )
+    #set( $whereClause = "WHERE IMSI = $inputValue" )
+#elseif ( ${type}==$TYPE_MSISDN )
+    #set( $selectColumn = "LIST(IMSI) AS IMSI" )
+    #set( $whereClause = "WHERE MSISDN = $inputValue" )
+#end
+
+
+SELECT $selectColumn FROM $dimTable $whereClause

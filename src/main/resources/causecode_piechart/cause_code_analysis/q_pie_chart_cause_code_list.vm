@@ -1,0 +1,77 @@
+#DEFINE_CONSTANTS()
+
+#set($cptRefForSgeh="DIM_E_SGEH_CAUSE_PROT_TYPE")
+#set($cptRefForLte="DIM_E_LTE_CAUSE_PROT_TYPE")
+
+#macro(CCAS_QUERY $errTable $ccTable $cptTable)
+(
+select    
+    errRef.CAUSE_CODE as CAUSE_CODE, 
+    isnull(CAUSE_CODE_DESC, str(errRef.CAUSE_CODE)) as CAUSE_CODE_DESC,
+    errref.CAUSE_PROT_TYPE as CAUSE_PROT_TYPE,
+	cptref.CAUSE_PROT_TYPE_DESC as CAUSE_PROT_TYPE_DESC,
+    #if($useAggregationTables)
+    	SUM(NO_OF_ERRORS) as NO_OF_ERRORS
+    #else
+    	count(*) as NO_OF_ERRORS
+    #end
+from
+    dc.${errTable} errRef,
+    dc.${ccTable} ccref,
+    dc.${cptTable} cptref
+    #GROUP_TABLE_INFO()
+where
+    #if(!$errTable.contains("_DAY")&& $timerange == "TR_4")
+        #GET_DATE_RANGE_LOCAL()
+    #else
+        #GET_DATETIME_RANGE()
+    #end
+    #GROUP_OR_SINGLE_INFO()
+    #if(!$useAggregationTables)
+        and #GET_TAC_EXCLUSION()
+    #end
+    and errRef.CAUSE_CODE *= ccref.CAUSE_CODE 
+    and errRef.CAUSE_PROT_TYPE *= ccref.CAUSE_PROT_TYPE
+    and errRef.CAUSE_PROT_TYPE *= cptref.CAUSE_PROT_TYPE 
+group by
+	CAUSE_CODE,
+	CAUSE_CODE_DESC,
+	errRef.CAUSE_PROT_TYPE,
+	CAUSE_PROT_TYPE_DESC
+)
+#end
+
+select 
+	CAUSE_CODE,
+	CAUSE_CODE_DESC,
+	CAUSE_PROT_TYPE,
+	CAUSE_PROT_TYPE_DESC
+from
+(
+select
+    err.CAUSE_CODE as CAUSE_CODE,
+    err.CAUSE_CODE_DESC as CAUSE_CODE_DESC,
+    err.CAUSE_PROT_TYPE as CAUSE_PROT_TYPE,
+	err.CAUSE_PROT_TYPE_DESC as CAUSE_PROT_TYPE_DESC,
+    SUM(err.NO_OF_ERRORS) as NO_OF_ERRORS
+from 
+(
+    #foreach ($errtable in $rawErrTables)
+        #if ($errtable.toString().indexOf($ApplicationConstants.SGEH) > -1)
+            #CCAS_QUERY($errtable $ccRefForSgeh $cptRefForSgeh)    
+        #else
+            #CCAS_QUERY($errtable $ccRefForLte $cptRefForLte)
+        #end
+        #if($velocityCount < $rawErrTables.size())
+            union all
+        #end
+    #end
+) as err (CAUSE_CODE, CAUSE_CODE_DESC, CAUSE_PROT_TYPE, CAUSE_PROT_TYPE_DESC, NO_OF_ERRORS)
+group by
+    CAUSE_CODE,
+    CAUSE_CODE_DESC,
+	CAUSE_PROT_TYPE,
+	CAUSE_PROT_TYPE_DESC
+    ) temp_cause_code
+order by
+    NO_OF_ERRORS DESC
